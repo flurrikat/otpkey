@@ -1,7 +1,7 @@
 mod keygen;
 
 fn main() {
-    let secret = keygen::OTPSecret::new().expect("otp secret gen failed");
+    let secret = keygen::OTPSecret::new(32).expect("otp secret gen failed");
 
     let uridata = keygen::URIData {
         label: "snow",

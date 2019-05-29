@@ -15,13 +15,13 @@ pub struct URIData<'a> {
 }
 
 impl OTPSecret {
-    pub fn new() -> Fallible<OTPSecret> {
+    pub fn new(bytes: usize) -> Fallible<OTPSecret> {
         let rand = SystemRandom::new();
         let mut new_secret = OTPSecret {
             key: Vec::new(),
         };
-        // XXX: should this be defined by the user?
-        new_secret.key.resize(160, 0);
+
+        new_secret.key.resize(bytes, 0);
         ensure!(rand.fill(new_secret.key.as_mut_slice()).is_ok(), "couldn't generate enough random numbers");
         Ok(new_secret)
     }
@@ -37,15 +37,19 @@ impl OTPSecret {
     pub fn into_qrcode_uri(&self, uri_data: &URIData) -> Fallible<String> {
         let code = match QrCode::new(self.into_uri(uri_data).as_bytes()) {
             Ok(c) => c,
-            Err(err) => bail!("Error while generating QR Code"),
+            Err(_) => bail!("Error while generating QR Code"),
         };
 
         let qrimage = code.render::<Luma<u8>>()
+            .max_dimensions(300, 300)
             .build();
 
         let mut pngdata: Vec<u8> = Vec::new();
 
-        png::PNGEncoder::new(pngdata).encode(qrimage.into_raw(), qrimage.width(), qrimage.height(), ColorType::Gray(0));
+        let qrsize = (qrimage.width(), qrimage.height());
+
+        ensure!(png::PNGEncoder::new(&mut pngdata).encode(&qrimage.into_raw(), qrsize.0, qrsize.1, ColorType::Gray(8)).is_ok(),
+            "couldn't encode PNG");
 
         let pngdata = base64::encode(&pngdata);
 
